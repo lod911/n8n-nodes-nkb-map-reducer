@@ -1,0 +1,63 @@
+{
+	"name": "n8n-nodes-nkb-map-reducer",
+	"version": "0.1.0",
+	"description": "n8n community node package for Map and Reduce operations",
+	"keywords": [
+		"n8n-community-node-package",
+		"NKB",
+		"Map",
+		"Reduce"
+	],
+	"license": "MIT",
+	"homepage": "https://creamus.ch",
+	"author": {
+		"name": "Linus Odolon",
+		"email": "linus.odolon@creamus.ch",
+		"homepage": "https://creamus.ch"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lod911/n8n-nodes-nkb-map-reducer.git"
+	},
+	"engines": {
+		"node": ">=20.15"
+	},
+	"main": "index.js",
+	"scripts": {
+		"build": "npx rimraf dist && tsc && gulp build:icons",
+		"dev": "tsc --watch",
+		"format": "prettier nodes credentials --write",
+		"lint": "eslint nodes credentials package.json",
+		"lintfix": "eslint nodes credentials package.json --fix",
+		"deploy": "rimraf dist && npm version patch && npm run format && npm run build && tar -czf ./../n8n-docker-install/nodes/app-map-reducer.tar.gz LICENSE.md README.md dist index.js node_modules package.json",
+		"deployTest": "rimraf dist && npm run format && npm run build && tar -czf ./../n8n-docker-install/nodes/app-map-reducer.tar.gz LICENSE.md README.md dist index.js node_modules package.json"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"credentials": [],
+		"nodes": [
+			"dist/nodes/map-reducer/MapReducer.node.js"
+		]
+	},
+	"devDependencies": {
+		"@types/node": "^24.2.1",
+		"@typescript-eslint/parser": "~8.39.0",
+		"eslint": "^9.33.0",
+		"eslint-plugin-n8n-nodes-base": "^1.16.3",
+		"gulp": "^5.0.1",
+		"n8n-workflow": "*",
+		"prettier": "^3.6.2",
+		"typescript": "^5.9.2"
+	},
+	"dependencies": {
+		"@langchain/openai": "^0.6.7",
+		"@langchain/textsplitters": "^0.1.0",
+		"gpt-tokenizer": "^3.0.1",
+		"p-queue": "^8.1.0",
+		"p-retry": "^6.2.1",
+		"pino": "^9.7.0"
+	}
+}
