@@ -117,24 +117,48 @@ export class TokenBudgetTracker {
 }
 
 /**
- * Erstellt eine konfigurierte PQueue-Instanz mit Token-Budget-Tracker.
+ * Erstellt eine PQueue-Instanz zur Steuerung von gleichzeitigen Tasks und zur Einhaltung von API-Rate-Limits.
+ * Zusätzlich wird ein TokenBudgetTracker initialisiert, um den Tokenverbrauch im Auge zu behalten.
  *
- * Initialisiert eine Warteschlange (PQueue) mit Rate-Limiting-Konfiguration
- * basierend auf den konfigurierten Requests pro Minute (RPM). Zusätzlich wird
- * ein TokenBudgetTracker für die Token-Überwachung erstellt.
+ * @param config - Konfigurationsobjekt vom Typ {@link SummarizeCfg}.
  *
- * @param config - Konfigurationsobjekt mit den benötigten Parametern
- * @returns queue - PQueue-Instanz mit Concurrency- und Rate-Limiting-Konfiguration
- * @returns tokenTracker - TokenBudgetTracker-Instanz für Token-Management
+ * ### Parameter (aus PQueue):
  *
- * @example
- * ```typescript
- * const { queue, tokenTracker } = makeQueue(config);
+ * #### `concurrency` (`config.QUEUE_CONCURRENCY`)
+ * - **Bedeutung:** Maximale Anzahl an Tasks, die gleichzeitig ausgeführt werden.
+ * - **Auswirkung:**
+ *   - Höherer Wert → mehr Durchsatz, aber höhere Last.
+ *   - Niedriger Wert → geringere Last, dafür längere Gesamtdauer.
  *
- * // Aufgabe zur Queue hinzufügen
- * await queue.add(async () => {
- *   // API-Aufruf
+ * #### `interval` (`config.QUEUE_INTERVAL`)
+ * - **Bedeutung:** Zeitfenster in Millisekunden, über das die Anzahl der gestarteten Tasks gezählt wird.
+ * - **Auswirkung:** Steuert die Zeitbasis für das Rate-Limit.
+ * - **Beispiel:** `60_000` für ein 1-Minuten-Zeitfenster.
+ *
+ * #### `intervalCap` (`config.REQUESTS_PER_MINUTE`)
+ * - **Bedeutung:** Maximale Anzahl an Tasks, die innerhalb eines `interval`-Zeitfensters gestartet werden dürfen.
+ * - **Auswirkung:** Schützt vor API-Rate-Limits, pausiert automatisch bis zum nächsten Intervall, falls erreicht.
+ * - **Beispiel:** Bei `20` und `interval = 60_000` → maximal 20 Starts pro Minute.
+ *
+ * ### Zusammenspiel der Parameter:
+ * - `concurrency` limitiert **gleichzeitige** Ausführungen.
+ * - `interval` + `intervalCap` limitieren **Frequenz** der Ausführungen pro Zeitfenster.
+ * - Das härteste Limit gewinnt: Ist `concurrency` > `intervalCap`, limitiert `intervalCap`.
+ *   Ist `intervalCap` sehr hoch, limitiert `concurrency`.
+ *
+ * @returns Ein Objekt mit:
+ * - `queue`: Die konfigurierte PQueue-Instanz.
+ * - `tokenTracker`: Instanz von {@link TokenBudgetTracker}, um den Tokenverbrauch zu überwachen.
+ *
+ * ### Beispiel:
+ * ```ts
+ * const { queue, tokenTracker } = makeQueue({
+ *   QUEUE_CONCURRENCY: 3,
+ *   QUEUE_INTERVAL: 60_000,
+ *   REQUESTS_PER_MINUTE: 10
  * });
+ *
+ * queue.add(() => doSomethingAsync());
  * ```
  */
 export function makeQueue(config: SummarizeCfg) {

@@ -1,7 +1,7 @@
 import { INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
 
 export const mapReducerNodeDescription: INodeTypeDescription = {
-	displayName: 'Map Reducer for NKB',
+	displayName: 'Creamus AI Map Reducer',
 	name: 'mapReducer',
 	group: ['transform', 'AI'],
 	version: 1,
@@ -9,7 +9,7 @@ export const mapReducerNodeDescription: INodeTypeDescription = {
 	description:
 		'Performs hierarchical map-reduce summarization of financial news articles using AI language models with token budget management and rate limiting.',
 	defaults: {
-		name: 'Map Reducer',
+		name: 'Creamus AI Map Reducer',
 	},
 	inputs: [
 		{ type: NodeConnectionType.Main, required: true, displayName: 'Input Data' },
@@ -17,6 +17,13 @@ export const mapReducerNodeDescription: INodeTypeDescription = {
 	],
 	outputs: [NodeConnectionType.Main],
 	properties: [
+		{
+			displayName:
+				'The Rate Limits "Tokens Per Minute" (TPM / TOKENS_PER_MINUTE) and "Requests Per Minute" (RPM / REQUESTS_PER_MINUTE) can looked up in the Azure portal.',
+			name: 'infoAzure',
+			type: 'notice',
+			default: '',
+		},
 		{
 			displayName: 'Map Prompt',
 			name: 'mapPrompt',
@@ -107,48 +114,16 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			noDataExpression: true,
 			default: 50000,
 			description:
-				'The number of tokens that can be processed per minute. This is used to calculate the time it takes to process the input tokens. - Can be looked up in the azure portal of the OpenAI service.',
-		},
-		{
-			displayName: 'Tokens Budget Timeout in ms',
-			name: 'TOKEN_BUDGET_TIMEOUT',
-			type: 'number',
-			noDataExpression: true,
-			default: 50000,
-			description:
-				'Maximum time in milliseconds to wait for sufficient token budget before throwing a timeout error. When the token budget is exhausted, the system will wait for tokens to become available again.',
+				'The number of tokens that can be processed per minute. This is used to calculate the time it takes to process the input tokens. (TOKENS_PER_MINUTE)',
 		},
 		{
 			displayName: 'Requests per Minute (RPM)',
 			name: 'REQUESTS_PER_MINUTE',
 			type: 'number',
 			noDataExpression: true,
-			default: 300,
-			description: 'The maximum number of requests that can be made per minute to the API service.',
-		},
-		{
-			displayName: 'Queue Interval (ms)',
-			name: 'QUEUE_INTERVAL',
-			type: 'number',
-			noDataExpression: true,
-			default: 60000,
-			description: 'The interval in milliseconds between queue processing cycles.',
-		},
-		{
-			displayName: 'Queue Concurrency',
-			name: 'QUEUE_CONCURRENCY',
-			type: 'number',
-			noDataExpression: true,
-			default: 5,
-			description: 'The maximum number of concurrent operations in the queue.',
-		},
-		{
-			displayName: 'Token Budget Window (ms)',
-			name: 'TOKEN_BUDGET_WINDOWS',
-			type: 'number',
-			noDataExpression: true,
-			default: 60000,
-			description: 'The time window in milliseconds for token budget calculations.',
+			default: 50,
+			description:
+				'The maximum number of requests that can be made per minute to the API service. (REQUESTS_PER_MINUTE)',
 		},
 		{
 			displayName: 'Map Output Maximum',
@@ -156,7 +131,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 500,
-			description: 'The maximum number of tokens for map/partial operation output.',
+			description: 'The maximum number of tokens for map/partial operation output. (MAP_OUT_MAX)',
 		},
 		{
 			displayName: 'Reduce Output Maximum',
@@ -164,7 +139,42 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 800,
-			description: 'The maximum number of tokens for reduce/final operation output.',
+			description:
+				'The maximum number of tokens for reduce/final operation output. (REDUCE_OUT_MAX)',
+		},
+		{
+			displayName: 'Tokens Budget Timeout in seconds',
+			name: 'TOKEN_BUDGET_TIMEOUT',
+			type: 'number',
+			noDataExpression: true,
+			default: 50,
+			description:
+				'Maximum time in milliseconds to wait for sufficient token budget before throwing a timeout error. When the token budget is exhausted, the system will wait for tokens to become available again. (TOKEN_BUDGET_TIMEOUT)',
+		},
+		{
+			displayName: 'Queue Interval in seconds',
+			name: 'QUEUE_INTERVAL',
+			type: 'number',
+			noDataExpression: true,
+			default: 60,
+			description: 'The interval in seconds between queue processing cycles. (QUEUE_INTERVAL)',
+		},
+		{
+			displayName: 'Queue Concurrency',
+			name: 'QUEUE_CONCURRENCY',
+			type: 'number',
+			noDataExpression: true,
+			default: 5,
+			description: 'The maximum number of concurrent operations in the queue. (QUEUE_CONCURRENCY)',
+		},
+		{
+			displayName: 'Token Budget Window in seconds',
+			name: 'TOKEN_BUDGET_WINDOWS',
+			type: 'number',
+			noDataExpression: true,
+			default: 60,
+			description:
+				'The time window in seconds for token budget calculations. (TOKEN_BUDGET_WINDOWS)',
 		},
 		{
 			displayName: 'Chunk Tokens',
@@ -172,7 +182,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 20000,
-			description: 'The number of tokens per chunk when splitting input data.',
+			description: 'The number of tokens per chunk when splitting input data. (CHUNK_TOKENS)',
 		},
 		{
 			displayName: 'Chunk Overlap',
@@ -180,7 +190,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 500,
-			description: 'The number of overlapping tokens between consecutive chunks.',
+			description: 'The number of overlapping tokens between consecutive chunks. (CHUNK_OVERLAP)',
 		},
 		{
 			displayName: 'Hierarchy Group Size',
@@ -188,7 +198,8 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 4,
-			description: 'The size of groups when organizing data in hierarchical structure.',
+			description:
+				'The size of groups when organizing data in hierarchical structure. (HIERARCHY_GROUP_SIZE)',
 		},
 		{
 			displayName: 'Encoding Model',

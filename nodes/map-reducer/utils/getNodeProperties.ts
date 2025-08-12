@@ -143,11 +143,11 @@ export function getNodeProperties(context: IExecuteFunctions): {
 
 	const SummarizeCfg: SummarizeCfg = {
 		TOKENS_PER_MINUTE: tokensPerMinute,
-		TOKEN_BUDGET_TIMEOUT: tokenBudgetTimeout,
+		TOKEN_BUDGET_TIMEOUT: tokenBudgetTimeout * 1000, // Convert to milliseconds
 		REQUESTS_PER_MINUTE: requestsPerMinute,
-		QUEUE_INTERVAL: queueInterval,
+		QUEUE_INTERVAL: queueInterval * 1000, // Convert to milliseconds
 		QUEUE_CONCURRENCY: queueConcurrency,
-		TOKEN_BUDGET_WINDOWS: tokenBudgetWindows,
+		TOKEN_BUDGET_WINDOWS: tokenBudgetWindows * 1000, // Convert to milliseconds
 		MAP_OUT_MAX: mapOutMax,
 		REDUCE_OUT_MAX: reduceOutMax,
 		CHUNK_TOKENS: chunkTokens,
