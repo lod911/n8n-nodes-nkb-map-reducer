@@ -13,6 +13,7 @@ export interface SummarizeCfg {
 	CHUNK_TOKENS: number;
 	CHUNK_OVERLAP: number;
 	HIERARCHY_GROUP_SIZE: number;
+	TEMPERATURE: number;
 }
 
 export function getNodeProperties(context: IExecuteFunctions): {
@@ -141,6 +142,12 @@ export function getNodeProperties(context: IExecuteFunctions): {
 		);
 	}
 
+	const temperature = context.getNodeParameter('TEMPERATURE', 0) as number;
+	if (temperature < 0 || temperature > 2) {
+		logger.error('TEMPERATURE must be between 0 and 2');
+		throw new NodeOperationError(context.getNode(), 'TEMPERATURE must be between 0 and 2');
+	}
+
 	const SummarizeCfg: SummarizeCfg = {
 		TOKENS_PER_MINUTE: tokensPerMinute,
 		TOKEN_BUDGET_TIMEOUT: tokenBudgetTimeout * 1000, // Convert to milliseconds
@@ -153,6 +160,7 @@ export function getNodeProperties(context: IExecuteFunctions): {
 		CHUNK_TOKENS: chunkTokens,
 		CHUNK_OVERLAP: chunkOverlap,
 		HIERARCHY_GROUP_SIZE: hierarchyGroupSize,
+		TEMPERATURE: temperature,
 	};
 
 	return {

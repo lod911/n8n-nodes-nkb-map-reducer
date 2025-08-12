@@ -94,7 +94,7 @@ export async function summarizeWithQueue(
 				logger.info(`🧩 MAP ${i + 1}/${docs.length} (est ~${estWeight} tok)`);
 				const res = await model.invoke(prompt, {
 					maxTokens: config.MAP_OUT_MAX,
-					temperature: 0.2,
+					temperature: config.TEMPERATURE,
 				} as any);
 
 				const used = usedTokensFromMessage(res);
@@ -141,7 +141,7 @@ export async function summarizeWithQueue(
 				logger.info(`🧮 REDUCE (est ~${estWeight} tok)`);
 				const res = await model.invoke(prompt, {
 					maxTokens: config.REDUCE_OUT_MAX,
-					temperature: 0.2,
+					temperature: config.TEMPERATURE,
 				} as any);
 
 				const used = usedTokensFromMessage(res);

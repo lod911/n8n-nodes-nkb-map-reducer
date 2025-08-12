@@ -198,6 +198,15 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			description: 'The size of groups when organizing data in hierarchical structure.',
 		},
 		{
+			displayName: 'Temperature',
+			name: 'TEMPERATURE',
+			type: 'number',
+			noDataExpression: true,
+			default: 0.2,
+			description:
+				'Controls randomness in AI text generation. Values range from 0 (deterministic, focused) to 2 (highly creative, random). Lower values produce more consistent and predictable outputs, while higher values increase creativity and variability. For summarization tasks, values between 0.0-0.5 are typically recommended.',
+		},
+		{
 			displayName: 'Encoding Model',
 			name: 'encodingModel',
 			type: 'options',
