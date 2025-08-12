@@ -122,8 +122,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 50,
-			description:
-				'The maximum number of requests that can be made per minute to the API service. (REQUESTS_PER_MINUTE)',
+			description: 'The maximum number of requests that can be made per minute to the API service.',
 		},
 		{
 			displayName: 'Map Output Maximum',
@@ -131,7 +130,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 500,
-			description: 'The maximum number of tokens for map/partial operation output. (MAP_OUT_MAX)',
+			description: 'The maximum number of tokens for map/partial operation output.',
 		},
 		{
 			displayName: 'Reduce Output Maximum',
@@ -139,8 +138,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 800,
-			description:
-				'The maximum number of tokens for reduce/final operation output. (REDUCE_OUT_MAX)',
+			description: 'The maximum number of tokens for reduce/final operation output.',
 		},
 		{
 			displayName: 'Tokens Budget Timeout in seconds',
@@ -149,7 +147,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			noDataExpression: true,
 			default: 50,
 			description:
-				'Maximum time in milliseconds to wait for sufficient token budget before throwing a timeout error. When the token budget is exhausted, the system will wait for tokens to become available again. (TOKEN_BUDGET_TIMEOUT)',
+				'Maximum time in milliseconds to wait for sufficient token budget before throwing a timeout error. When the token budget is exhausted, the system will wait for tokens to become available again.',
 		},
 		{
 			displayName: 'Queue Interval in seconds',
@@ -157,7 +155,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 60,
-			description: 'The interval in seconds between queue processing cycles. (QUEUE_INTERVAL)',
+			description: 'The interval in seconds between queue processing cycles.',
 		},
 		{
 			displayName: 'Queue Concurrency',
@@ -165,7 +163,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 5,
-			description: 'The maximum number of concurrent operations in the queue. (QUEUE_CONCURRENCY)',
+			description: 'The maximum number of concurrent operations in the queue.',
 		},
 		{
 			displayName: 'Token Budget Window in seconds',
@@ -173,8 +171,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 60,
-			description:
-				'The time window in seconds for token budget calculations. (TOKEN_BUDGET_WINDOWS)',
+			description: 'The time window in seconds for token budget calculations.',
 		},
 		{
 			displayName: 'Chunk Tokens',
@@ -182,7 +179,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 20000,
-			description: 'The number of tokens per chunk when splitting input data. (CHUNK_TOKENS)',
+			description: 'The number of tokens per chunk when splitting input data.',
 		},
 		{
 			displayName: 'Chunk Overlap',
@@ -190,7 +187,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 500,
-			description: 'The number of overlapping tokens between consecutive chunks. (CHUNK_OVERLAP)',
+			description: 'The number of overlapping tokens between consecutive chunks.',
 		},
 		{
 			displayName: 'Hierarchy Group Size',
@@ -198,8 +195,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			type: 'number',
 			noDataExpression: true,
 			default: 4,
-			description:
-				'The size of groups when organizing data in hierarchical structure. (HIERARCHY_GROUP_SIZE)',
+			description: 'The size of groups when organizing data in hierarchical structure.',
 		},
 		{
 			displayName: 'Encoding Model',
