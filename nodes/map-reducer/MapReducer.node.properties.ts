@@ -112,7 +112,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			name: 'TOKENS_PER_MINUTE',
 			type: 'number',
 			noDataExpression: true,
-			default: 50000,
+			default: 49900,
 			description:
 				'The number of tokens that can be processed per minute. This is used to calculate the time it takes to process the input tokens. (TOKENS_PER_MINUTE)',
 		},
@@ -129,23 +129,25 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			name: 'MAP_OUT_MAX',
 			type: 'number',
 			noDataExpression: true,
-			default: 500,
-			description: 'The maximum number of tokens for map/partial operation output.',
+			default: 25000,
+			description:
+				'The maximum number of tokens for map/partial operation output. Close to the TPM but with a deduction for the respective prompt.',
 		},
 		{
 			displayName: 'Reduce Output Maximum',
 			name: 'REDUCE_OUT_MAX',
 			type: 'number',
 			noDataExpression: true,
-			default: 800,
-			description: 'The maximum number of tokens for reduce/final operation output.',
+			default: 40000,
+			description:
+				'The maximum number of tokens for reduce/final operation output. Can be close to the TPM. If so, with a deduction for the respective prompt.',
 		},
 		{
 			displayName: 'Tokens Budget Timeout in seconds',
 			name: 'TOKEN_BUDGET_TIMEOUT',
 			type: 'number',
 			noDataExpression: true,
-			default: 50,
+			default: 75,
 			description:
 				'Maximum time in milliseconds to wait for sufficient token budget before throwing a timeout error. When the token budget is exhausted, the system will wait for tokens to become available again.',
 		},

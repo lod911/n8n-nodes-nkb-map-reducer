@@ -9,7 +9,7 @@ import { getLogger } from './utils/logger';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { getChatModel } from './utils/getChatModel';
 import { getNodeProperties } from './utils/getNodeProperties';
-import { docsFromPlainText, makeQueue } from './utils/helper-functions';
+import { docsFromPlainText } from './utils/helper-functions';
 import { summarizeWithQueue } from './MapReducer.node.summarize';
 
 export class MapReducer implements INodeType {
@@ -33,29 +33,14 @@ export class MapReducer implements INodeType {
 		}
 
 		// Parameter und Konfiguration abrufen
-		const { encodingModel, mapPromptProperties, combinePromptProperties, SummarizeCfg } =
-			getNodeProperties(this);
+		const { mapPromptProperties, combinePromptProperties } = getNodeProperties(this);
 
 		const mapPrompt = PromptTemplate.fromTemplate(mapPromptProperties);
 		const combinePrompt = PromptTemplate.fromTemplate(combinePromptProperties);
 
-		const docs = await docsFromPlainText(
-			JSON.stringify(items.map((i) => i.json)),
-			SummarizeCfg,
-			encodingModel,
-		);
-		const { queue, tokenTracker } = makeQueue(SummarizeCfg);
+		const docs = await docsFromPlainText.call(this, JSON.stringify(items.map((i) => i.json)));
 
-		const mail = await summarizeWithQueue(
-			docs,
-			model,
-			queue,
-			tokenTracker,
-			mapPrompt,
-			combinePrompt,
-			SummarizeCfg,
-			encodingModel,
-		);
+		const mail = await summarizeWithQueue(this, docs, model, mapPrompt, combinePrompt);
 
 		return [[{ json: { mail } }]];
 	}

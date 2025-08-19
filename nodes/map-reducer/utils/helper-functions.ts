@@ -4,7 +4,8 @@ import PQueue from 'p-queue';
 import pRetry from 'p-retry';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { getLogger } from './logger';
-import { SummarizeCfg } from './getNodeProperties';
+import { getNodeProperties, SummarizeCfg } from './getNodeProperties';
+import { IExecuteFunctions } from 'n8n-workflow';
 
 /**
  * Zählt die Anzahl der Tokens in einem gegebenen Text.
@@ -290,40 +291,44 @@ export async function hierarchicalReduce(
 	reduceJob: (joined: string) => Promise<string>,
 	groupSize: number,
 ): Promise<string> {
+	const logger = getLogger('hierarchicalReduce');
+
+	logger.debug(`Starting hierarchical reduce with ${texts.length} texts, groupSize: ${groupSize}`);
+	logger.trace(`Text lengths: [${texts.map((t) => t.length).join(', ')}]`);
+
 	if (texts.length <= groupSize) {
-		return reduceJob(texts.join('\n\n---\n\n'));
+		logger.debug(`Final reduction step: ${texts.length} texts fit in one group`);
+		const joinedText = texts.join('\n\n---\n\n');
+		logger.trace(`Joined text length: ${joinedText.length} characters`);
+
+		const result = await reduceJob(joinedText);
+		logger.debug(`Final reduction completed, result length: ${result.length} characters`);
+		return result;
 	}
+
 	const groups: string[][] = [];
 	for (let i = 0; i < texts.length; i += groupSize) {
 		groups.push(texts.slice(i, i + groupSize));
 	}
-	const level = await Promise.all(groups.map((g) => reduceJob(g.join('\n\n---\n\n'))));
-	return hierarchicalReduce(level, reduceJob, groupSize);
-}
 
-/**
- * Erstellt einen Token-bewussten Text-Splitter.
- *
- * Konfiguriert einen RecursiveCharacterTextSplitter, der Texte basierend
- * auf Token-Anzahl anstatt Zeichen aufteilt. Dies ist wichtig für die
- * Einhaltung von Token-Limits bei API-Aufrufen.
- *
- * @param config - Konfigurationsobjekt mit CHUNK_TOKENS und CHUNK_OVERLAP
- * @param encodingModel - Das zu verwendende Encoding-Modell
- * @returns Konfigurierter RecursiveCharacterTextSplitter mit Token-basierter Längenberechnung
- *
- * @example
- * ```typescript
- * const splitter = makeTokenAwareSplitter(config, 'o200k');
- * const chunks = await splitter.splitText("Sehr langer Text...");
- * ```
- */
-export function makeTokenAwareSplitter(config: SummarizeCfg, encodingModel: string) {
-	return new RecursiveCharacterTextSplitter({
-		chunkSize: config.CHUNK_TOKENS,
-		chunkOverlap: config.CHUNK_OVERLAP,
-		lengthFunction: (s: string) => countTokens(s, encodingModel),
-	});
+	logger.debug(`Created ${groups.length} groups for parallel processing`);
+	logger.trace(`Group sizes: [${groups.map((g) => g.length).join(', ')}]`);
+
+	const level = await Promise.all(
+		groups.map(async (g, index) => {
+			const joinedText = g.join('\n\n---\n\n');
+			logger.trace(
+				`Processing group ${index + 1}/${groups.length}, joined length: ${joinedText.length} characters`,
+			);
+
+			const result = await reduceJob(joinedText);
+			logger.trace(`Group ${index + 1} completed, result length: ${result.length} characters`);
+			return result;
+		}),
+	);
+
+	logger.debug(`Level completed, proceeding with recursive reduction of ${level.length} results`);
+	return hierarchicalReduce(level, reduceJob, groupSize);
 }
 
 /**
@@ -345,11 +350,17 @@ export function makeTokenAwareSplitter(config: SummarizeCfg, encodingModel: stri
  * ```
  */
 export async function docsFromPlainText(
+	this: IExecuteFunctions,
 	longText: string,
-	config: SummarizeCfg,
-	encodingModel: string,
-) {
-	const splitter = makeTokenAwareSplitter(config, encodingModel);
+): Promise<{ pageContent: string; metadata: { chunk: number } }[]> {
+	const { SummarizeCfg, encodingModel } = getNodeProperties(this);
+
+	const splitter = new RecursiveCharacterTextSplitter({
+		chunkSize: SummarizeCfg.CHUNK_TOKENS,
+		chunkOverlap: SummarizeCfg.CHUNK_OVERLAP,
+		lengthFunction: (s: string) => countTokens(s, encodingModel),
+	});
+
 	const chunks = await splitter.splitText(longText);
 	return chunks.map((c, i) => ({ pageContent: c, metadata: { chunk: i } }));
 }
