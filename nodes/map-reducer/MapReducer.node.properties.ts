@@ -112,7 +112,7 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			name: 'TOKENS_PER_MINUTE',
 			type: 'number',
 			noDataExpression: true,
-			default: 49900,
+			default: 50000,
 			description:
 				'The number of tokens that can be processed per minute. This is used to calculate the time it takes to process the input tokens. (TOKENS_PER_MINUTE)',
 		},
@@ -138,18 +138,18 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			name: 'REDUCE_OUT_MAX',
 			type: 'number',
 			noDataExpression: true,
-			default: 40000,
+			default: 35000,
 			description:
-				'The maximum number of tokens for reduce/final operation output. Can be close to the TPM. If so, with a deduction for the respective prompt.',
+				'The maximum number of tokens for reduce/final operation output. Must be significantly lower than TPM to allow for prompt tokens.',
 		},
 		{
 			displayName: 'Tokens Budget Timeout in seconds',
 			name: 'TOKEN_BUDGET_TIMEOUT',
 			type: 'number',
 			noDataExpression: true,
-			default: 75,
+			default: 180,
 			description:
-				'Maximum time in milliseconds to wait for sufficient token budget before throwing a timeout error. When the token budget is exhausted, the system will wait for tokens to become available again.',
+				'Maximum time in seconds to wait for sufficient token budget before throwing a timeout error. Increased for large operations.',
 		},
 		{
 			displayName: 'Queue Interval in seconds',
@@ -180,8 +180,9 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			name: 'CHUNK_TOKENS',
 			type: 'number',
 			noDataExpression: true,
-			default: 20000,
-			description: 'The number of tokens per chunk when splitting input data.',
+			default: 18000,
+			description:
+				'The number of tokens per chunk when splitting input data. Smaller chunks reduce memory pressure in reduce phase.',
 		},
 		{
 			displayName: 'Chunk Overlap',
@@ -196,8 +197,9 @@ Zu jeder Zusammenfassung soll die Relevanz zu den Märkten (unterhalb des Nachwe
 			name: 'HIERARCHY_GROUP_SIZE',
 			type: 'number',
 			noDataExpression: true,
-			default: 4,
-			description: 'The size of groups when organizing data in hierarchical structure.',
+			default: 2,
+			description:
+				'The size of groups when organizing data in hierarchical structure. Smaller groups reduce token usage per reduce operation.',
 		},
 		{
 			displayName: 'Temperature',

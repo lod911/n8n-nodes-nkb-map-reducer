@@ -332,28 +332,30 @@ export async function hierarchicalReduce(
 }
 
 /**
- * Konvertiert einen langen Text in ein Array von Dokumenten.
+ * Konvertiert einen langen Text in ein Array von Dokumenten mit präziser Token-Berechnung.
  *
  * Teilt einen langen Text mit Hilfe des Token-bewussten Splitters in
  * kleinere Chunks auf und erstellt daraus ein Array von Dokumenten-Objekten.
- * Jedes Dokument enthält den Text-Inhalt und Metadaten mit Chunk-Nummer.
+ * Jedes Dokument enthält den Text-Inhalt, Metadaten mit Chunk-Nummer und
+ * die exakte Token-Anzahl für bessere Budgetplanung.
  *
  * @param longText - Der zu teilende lange Text
- * @param config - Konfigurationsobjekt für den Splitter
- * @param encodingModel - Das zu verwendende Encoding-Modell
- * @returns Promise mit einem Array von Dokumenten-Objekten
+ * @returns Promise mit einem Array von Dokumenten-Objekten mit Token-Informationen
  *
  * @example
  * ```typescript
- * const docs = await docsFromPlainText("Sehr langer Text mit vielen Nachrichten...", config, 'o200k');
+ * const docs = await docsFromPlainText("Sehr langer Text mit vielen Nachrichten...");
  * console.log(`Aufgeteilt in ${docs.length} Chunks`);
  * ```
  */
 export async function docsFromPlainText(
 	this: IExecuteFunctions,
 	longText: string,
-): Promise<{ pageContent: string; metadata: { chunk: number } }[]> {
+): Promise<{ pageContent: string; metadata: { chunk: number; tokenCount: number } }[]> {
 	const { SummarizeCfg, encodingModel } = getNodeProperties(this);
+	const logger = getLogger('docsFromPlainText');
+
+	logger.info(`Processing text with ${countTokens(longText, encodingModel)} tokens`);
 
 	const splitter = new RecursiveCharacterTextSplitter({
 		chunkSize: SummarizeCfg.CHUNK_TOKENS,
@@ -362,5 +364,23 @@ export async function docsFromPlainText(
 	});
 
 	const chunks = await splitter.splitText(longText);
-	return chunks.map((c, i) => ({ pageContent: c, metadata: { chunk: i } }));
+
+	const docs = chunks.map((chunk, index) => {
+		const tokenCount = countTokens(chunk, encodingModel);
+		logger.debug(`Chunk ${index + 1}/${chunks.length}: ${tokenCount} tokens`);
+
+		return {
+			pageContent: chunk,
+			metadata: {
+				chunk: index,
+				tokenCount: tokenCount,
+			},
+		};
+	});
+
+	const totalTokens = docs.reduce((sum, doc) => sum + doc.metadata.tokenCount, 0);
+	logger.info(`Created ${docs.length} chunks with total ${totalTokens} tokens`);
+	logger.debug(`Token distribution: [${docs.map((d) => d.metadata.tokenCount).join(', ')}]`);
+
+	return docs;
 }

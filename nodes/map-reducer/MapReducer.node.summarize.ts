@@ -14,10 +14,10 @@ import { IExecuteFunctions } from 'n8n-workflow';
 /**
  * Typ-Definition für Dokument-Objekte.
  *
- * Definiert die Struktur eines Dokuments mit Inhalt und optionalen Metadaten.
+ * Definiert die Struktur eines Dokuments mit Inhalt und erweiterten Metadaten.
  * Wird im Map-Reduce-Prozess für die Verarbeitung von Text-Chunks verwendet.
  */
-type Doc = { pageContent: string; metadata?: any };
+type Doc = { pageContent: string; metadata: { chunk: number; tokenCount: number } };
 
 /**
  * Führt eine vollständige Map-Reduce-Zusammenfassung von Dokumenten durch.
@@ -54,7 +54,7 @@ export async function summarizeWithQueue(
 	combinePrompt: PromptTemplate,
 ): Promise<string> {
 	const logger = getLogger('summarizeWithQueue');
-	logger.info(`🚦 Start Map-Reduce (docs=${docs.length})`);
+	logger.info(`🚦 Starting MAP-REDUCE with ${docs.length} documents`);
 
 	if (!docs || docs.length === 0) {
 		throw new Error('No documents provided for summarization');
@@ -62,11 +62,19 @@ export async function summarizeWithQueue(
 
 	const { SummarizeCfg: config, encodingModel } = getNodeProperties(executeFunctionsContext);
 
+	// Log Token-Verteilung der Input-Dokumente
+	const totalInputTokens = docs.reduce((sum, doc) => sum + doc.metadata.tokenCount, 0);
+	const avgTokensPerDoc = Math.round(totalInputTokens / docs.length);
+	logger.debug(
+		`📊 Input token analysis: total=${totalInputTokens}, avg=${avgTokensPerDoc}, max=${Math.max(...docs.map((d) => d.metadata.tokenCount))}`,
+	);
+
 	const { queue, tokenTracker } = makeQueue(config);
 	const partials: string[] = [];
 
 	try {
 		// MAP Phase - Process each document
+		logger.debug('📋 Starting MAP phase...');
 		for (let i = 0; i < docs.length; i++) {
 			const doc = docs[i];
 
@@ -77,30 +85,40 @@ export async function summarizeWithQueue(
 				}
 
 				const prompt = await mapPrompt.format({ text: doc.pageContent });
-				const estWeight = countTokens(prompt, encodingModel) + config.MAP_OUT_MAX;
+				const promptTokens = countTokens(prompt, encodingModel);
+				const estWeight = promptTokens + config.MAP_OUT_MAX;
+
+				logger.debug(
+					`📝 MAP chunk ${doc.metadata.chunk + 1}: input=${doc.metadata.tokenCount} tokens, prompt=${promptTokens} tokens, estimated=${estWeight} tokens`,
+				);
+
+				// Token budget validation mit präzisen Werten
+				if (estWeight > config.TOKENS_PER_MINUTE) {
+					throw new Error(
+						`MAP operation token estimate (${estWeight}) exceeds TPM limit (${config.TOKENS_PER_MINUTE})`,
+					);
+				}
 
 				// Token budget waiting with timeout
 				const timeoutMs = config.TOKEN_BUDGET_TIMEOUT;
 				const startTime = Date.now();
 				while (!tokenTracker.canUseTokens(estWeight)) {
 					if (Date.now() - startTime > timeoutMs) {
-						const errorMsg = `Token budget timeout after ${
-							timeoutMs / 1000
-						} seconds: need ${estWeight}, have ${tokenTracker.getRemainingTokens()}`;
-						logger.error(errorMsg);
+						const errorMsg = `Token budget timeout after ${config.TOKEN_BUDGET_TIMEOUT / 1000} seconds: need ${estWeight}, have ${tokenTracker.getRemainingTokens()}`;
+						logger.error(`[MAP chunk ${doc.metadata.chunk + 1}] ${errorMsg}`);
 						throw new Error(errorMsg);
 					}
 					logger.info(
-						`⏳ Waiting for token budget... (need ${estWeight}, have ${tokenTracker.getRemainingTokens()})`,
+						`[MAP chunk ${doc.metadata.chunk + 1}] Waiting for token budget... (need ${estWeight}, have ${tokenTracker.getRemainingTokens()})`,
 					);
 					await new Promise((resolve) => setTimeout(resolve, 3000));
 				}
 
+				logger.info(`🧮 MAP chunk ${doc.metadata.chunk + 1} (est ~${estWeight} tokens)`);
+
 				// Execute MAP operation with retry and error handling
 				const partial = (await queue.add(async () =>
 					withRetry(async () => {
-						logger.info(`🧩 MAP ${i + 1}/${docs.length} (est ~${estWeight} tok)`);
-
 						try {
 							const res = await model.invoke(prompt, {
 								maxTokens: config.MAP_OUT_MAX,
@@ -108,21 +126,21 @@ export async function summarizeWithQueue(
 							} as any);
 
 							if (!res?.content) {
-								throw new Error(`Empty response from model for document ${i + 1}`);
+								throw new Error(`Empty response from model for document ${doc.metadata.chunk + 1}`);
 							}
 
-							const used = usedTokensFromMessage(res);
-							if (used) {
-								tokenTracker.useTokens(used);
-								logger.debug(`   used ${used} tokens`);
-							} else {
-								tokenTracker.useTokens(estWeight);
-								logger.debug(`   estimated ${estWeight} tokens (no usage metadata)`);
-							}
+							const actualTokens = usedTokensFromMessage(res) || estWeight;
+							tokenTracker.useTokens(actualTokens);
+							logger.debug(
+								`✅ [MAP chunk ${doc.metadata.chunk + 1}] Used ${actualTokens} tokens - completed successfully`,
+							);
 
 							return (res.content as string).trim();
 						} catch (error) {
-							logger.error(`Model invocation failed for document ${i + 1}:`, error);
+							logger.error(
+								`Model invocation failed for document ${doc.metadata.chunk + 1}:`,
+								error,
+							);
 							throw error;
 						}
 					}),
@@ -130,19 +148,18 @@ export async function summarizeWithQueue(
 
 				if (partial && partial.length > 0) {
 					partials.push(partial);
-					logger.debug(`✅ MAP ${i + 1}/${docs.length} completed (${partial.length} chars)`);
 				} else {
-					logger.warn(`⚠️ MAP ${i + 1}/${docs.length} returned empty result`);
+					logger.warn(`⚠️ MAP chunk ${doc.metadata.chunk + 1} returned empty result`);
 				}
 			} catch (error) {
-				logger.error(`Failed to process document ${i + 1}:`, error);
+				logger.error(`Failed to process document ${doc.metadata.chunk + 1}:`, error);
 				// Continue with other documents instead of failing completely
 				if (error instanceof Error && error.message.includes('Token budget timeout')) {
 					throw error; // Re-throw timeout errors as they indicate systemic issues
 				}
 				// For other errors, log and continue
 				logger.warn(
-					`⚠️ Skipping document ${i + 1} due to error, continuing with remaining documents`,
+					`⚠️ Skipping document ${doc.metadata.chunk + 1} due to error, continuing with remaining documents`,
 				);
 			}
 		}
@@ -151,7 +168,7 @@ export async function summarizeWithQueue(
 			throw new Error('No documents were successfully processed in MAP phase');
 		}
 
-		logger.info(`📊 MAP phase completed: ${partials.length}/${docs.length} documents processed`);
+		logger.info(`✅ MAP phase completed: ${partials.length}/${docs.length} documents processed`);
 	} catch (error) {
 		logger.error('MAP phase failed:', error);
 		throw new Error(
@@ -166,30 +183,41 @@ export async function summarizeWithQueue(
 				throw new Error('Empty text provided for reduce operation');
 			}
 
-			try {
-				const prompt = await combinePrompt.format({ text: joined });
-				const estWeight = countTokens(prompt, encodingModel) + config.REDUCE_OUT_MAX;
+			const inputTokens = countTokens(joined, encodingModel);
+			const prompt = await combinePrompt.format({ text: joined });
+			const promptTokens = countTokens(prompt, encodingModel);
+			const estWeight = promptTokens + config.REDUCE_OUT_MAX;
 
+			logger.debug(
+				`📝 REDUCE: input=${inputTokens} tokens, prompt=${promptTokens} tokens, estimated=${estWeight} tokens`,
+			);
+
+			// Token budget validation
+			if (estWeight > config.TOKENS_PER_MINUTE) {
+				throw new Error(
+					`REDUCE operation token estimate (${estWeight}) exceeds TPM limit (${config.TOKENS_PER_MINUTE}). Consider reducing REDUCE_OUT_MAX or input size.`,
+				);
+			}
+
+			try {
 				// Token budget waiting with timeout
 				const timeoutMs = config.TOKEN_BUDGET_TIMEOUT;
 				const startTime = Date.now();
 				while (!tokenTracker.canUseTokens(estWeight)) {
 					if (Date.now() - startTime > timeoutMs) {
-						const errorMsg = `Token budget timeout after ${
-							timeoutMs / 1000
-						} seconds: need ${estWeight}, have ${tokenTracker.getRemainingTokens()}`;
-						logger.error(errorMsg);
+						const errorMsg = `Token budget timeout after ${config.TOKEN_BUDGET_TIMEOUT / 1000} seconds: need ${estWeight}, have ${tokenTracker.getRemainingTokens()}`;
+						logger.error(`[REDUCE] ${errorMsg}`);
 						throw new Error(errorMsg);
 					}
 					logger.info(
-						`Waiting for token budget for reduce... (need ${estWeight}, have ${tokenTracker.getRemainingTokens()})`,
+						`[REDUCE] Waiting for token budget... (need ${estWeight}, have ${tokenTracker.getRemainingTokens()})`,
 					);
 					await new Promise((resolve) => setTimeout(resolve, 3000));
 				}
 
 				return (await queue.add(async () =>
 					withRetry(async () => {
-						logger.info(`🧮 REDUCE (est ~${estWeight} tok)`);
+						logger.info(`🧮 REDUCE (est ~${estWeight} tokens)`);
 
 						try {
 							const res = await model.invoke(prompt, {
@@ -201,16 +229,10 @@ export async function summarizeWithQueue(
 								throw new Error('Empty response from model during reduce operation');
 							}
 
-							const used = usedTokensFromMessage(res);
-							if (used) {
-								tokenTracker.useTokens(used);
-								logger.debug(`   used ${used} tokens`);
-							} else {
-								tokenTracker.useTokens(estWeight);
-								logger.debug(`   estimated ${estWeight} tokens (no usage metadata)`);
-							}
+							const actualTokens = usedTokensFromMessage(res) || estWeight;
+							tokenTracker.useTokens(actualTokens);
+							logger.info(`✅ [REDUCE] Used ${actualTokens} tokens - completed successfully`);
 
-							logger.info(`✅ REDUCE completed successfully`);
 							return (res.content as string).trim();
 						} catch (error) {
 							logger.error('Model invocation failed during reduce operation:', error);
@@ -226,14 +248,14 @@ export async function summarizeWithQueue(
 			}
 		};
 
-		logger.info(`🔄 Starting hierarchical reduce with ${partials.length} partials`);
+		logger.info(`🔄 Starting REDUCE phase...`);
 		const final = await hierarchicalReduce(partials, reduceJob, config.HIERARCHY_GROUP_SIZE);
 
 		if (!final || final.trim().length === 0) {
 			throw new Error('Hierarchical reduce returned empty result');
 		}
 
-		logger.info('✅ Summarization fertig');
+		logger.info('🎉 MAP-REDUCE completed successfully');
 		return final.trim();
 	} catch (error) {
 		logger.error('REDUCE phase failed:', error);
